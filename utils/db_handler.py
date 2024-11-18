@@ -19,37 +19,50 @@ class VideoSummary:
 class DatabaseHandler:
     def __init__(self):
         try:
-            supabase_url = os.environ.get('SUPABASE_URL')
-            supabase_key = os.environ.get('SUPABASE_KEY')
+            # Try getting credentials from environment variables first, then Streamlit secrets
+            supabase_url = os.environ.get('SUPABASE_URL') or st.secrets.get('SUPABASE_URL')
+            supabase_key = os.environ.get('SUPABASE_KEY') or st.secrets.get('SUPABASE_KEY')
             
-            if not supabase_url or not supabase_key:
-                st.error("Supabase credentials not found in environment variables")
-                raise ValueError("Supabase credentials not found in environment variables")
+            if not supabase_url:
+                st.error("Supabase URL not found in environment variables or secrets")
+                raise ValueError("Missing SUPABASE_URL")
+            
+            if not supabase_key:
+                st.error("Supabase API key not found in environment variables or secrets")
+                raise ValueError("Missing SUPABASE_KEY")
 
             st.info("Initializing Supabase client...")
+            st.info(f"Attempting to connect to Supabase URL: {supabase_url.split('@')[-1]}")  # Only show host part
+            
             self.client = create_client(supabase_url, supabase_key)
             
-            # Test connection
+            # Test connection with detailed error handling
             if not self.verify_connection():
                 st.error("Failed to verify database connection")
+                st.error("Please check your Supabase credentials and network connection")
                 raise Exception("Database connection verification failed")
             
-            st.success("Database connected successfully")
+            st.success("Database connected successfully to Supabase")
             
+        except ValueError as ve:
+            st.error(f"Configuration error: {str(ve)}")
+            st.error("Please ensure all required environment variables are set")
+            raise
         except Exception as e:
             st.error(f"Database initialization error: {str(e)}")
-            st.error(f"Stack trace: {traceback.format_exc()}")
-            raise Exception(f"Failed to initialize database connection: {str(e)}")
+            st.error(f"Stack trace:\n{traceback.format_exc()}")
+            raise Exception(f"Failed to initialize Supabase connection: {str(e)}")
 
     def verify_connection(self) -> bool:
         """Verify database connection is active."""
         try:
-            # Use from_ instead of table for Supabase client
             response = self.client.from_('video_summaries').select('id').limit(1).execute()
-            return True
+            if hasattr(response, 'data'):
+                return True
+            return False
         except Exception as e:
             st.error(f"Connection verification failed: {str(e)}")
-            st.error(f"Stack trace: {traceback.format_exc()}")
+            st.error(f"Stack trace:\n{traceback.format_exc()}")
             return False
 
     def save_summary(self, video_id: str, title: str, summary: str, 
@@ -69,13 +82,18 @@ class DatabaseHandler:
                 "timestamp": datetime.utcnow().isoformat()
             }
             
-            # Use from_ instead of table for Supabase client
             response = self.client.from_('video_summaries').insert(data).execute()
-            return True
+            
+            if hasattr(response, 'data') and response.data:
+                st.success("Summary saved successfully to Supabase")
+                return True
+            else:
+                st.error("Failed to save summary: No data returned from Supabase")
+                return False
             
         except Exception as e:
             st.error(f"Error saving summary: {str(e)}")
-            st.error(f"Stack trace: {traceback.format_exc()}")
+            st.error(f"Stack trace:\n{traceback.format_exc()}")
             raise Exception(f"Database error: {str(e)}")
 
     def get_recent_summaries(self, limit: int = 5) -> List[VideoSummary]:
@@ -85,28 +103,33 @@ class DatabaseHandler:
                 st.error("Database connection is not active")
                 return []
             
-            # Use from_ instead of table for Supabase client
             response = self.client.from_('video_summaries')\
                 .select('*')\
                 .order('timestamp', desc=True)\
                 .limit(limit)\
                 .execute()
             
+            if not hasattr(response, 'data'):
+                st.error("No data attribute in Supabase response")
+                return []
+            
             return [
                 VideoSummary(
-                    id=item['id'],
-                    video_id=item['video_id'],
-                    title=item['title'],
-                    summary=item['summary'],
-                    language=item['language'],
-                    timestamp=datetime.fromisoformat(item['timestamp']),
-                    source_urls=item['source_urls']
+                    id=item.get('id'),
+                    video_id=item.get('video_id'),
+                    title=item.get('title'),
+                    summary=item.get('summary'),
+                    language=item.get('language'),
+                    timestamp=datetime.fromisoformat(item.get('timestamp')),
+                    source_urls=item.get('source_urls')
                 )
                 for item in response.data
-            ] if response.data else []
+                if all(key in item for key in ['id', 'video_id', 'title', 'summary', 'language', 'timestamp', 'source_urls'])
+            ]
             
         except Exception as e:
             st.error(f"Error in get_recent_summaries: {str(e)}")
+            st.error(f"Stack trace:\n{traceback.format_exc()}")
             return []
 
     def get_summaries_by_language(self, language: str, 
@@ -117,7 +140,6 @@ class DatabaseHandler:
                 st.error("Database connection is not active")
                 return []
             
-            # Use from_ instead of table for Supabase client
             response = self.client.from_('video_summaries')\
                 .select('*')\
                 .eq('language', language)\
@@ -125,23 +147,29 @@ class DatabaseHandler:
                 .limit(limit)\
                 .execute()
             
+            if not hasattr(response, 'data'):
+                st.error("No data attribute in Supabase response")
+                return []
+            
             return [
                 VideoSummary(
-                    id=item['id'],
-                    video_id=item['video_id'],
-                    title=item['title'],
-                    summary=item['summary'],
-                    language=item['language'],
-                    timestamp=datetime.fromisoformat(item['timestamp']),
-                    source_urls=item['source_urls']
+                    id=item.get('id'),
+                    video_id=item.get('video_id'),
+                    title=item.get('title'),
+                    summary=item.get('summary'),
+                    language=item.get('language'),
+                    timestamp=datetime.fromisoformat(item.get('timestamp')),
+                    source_urls=item.get('source_urls')
                 )
                 for item in response.data
-            ] if response.data else []
+                if all(key in item for key in ['id', 'video_id', 'title', 'summary', 'language', 'timestamp', 'source_urls'])
+            ]
             
         except Exception as e:
             st.error(f"Error in get_summaries_by_language: {str(e)}")
+            st.error(f"Stack trace:\n{traceback.format_exc()}")
             return []
 
     def __del__(self):
         """Cleanup."""
-        pass
+        self.client = None
