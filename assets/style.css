@@ -14,17 +14,6 @@ h1, h2, h3 {
     font-weight: 600;
 }
 
-/* Article container */
-.article-container {
-    padding: 24px;
-    background-color: #ffffff;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    margin: 16px 0;
-    color: #1a1a1a;
-}
-
 /* Title */
 .article-title {
     font-size: 24px;
@@ -62,6 +51,24 @@ h1, h2, h3 {
     text-decoration: underline;
 }
 
+/* Video link */
+.video-link {
+    display: inline-block;
+    padding: 8px 16px;
+    background-color: #2563eb;
+    color: #ffffff !important;
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.video-link:hover {
+    background-color: #1d4ed8;
+    text-decoration: none;
+}
+
 /* Video recommendations */
 .video-recommendation {
     display: flex;
@@ -79,6 +86,62 @@ h1, h2, h3 {
 .video-recommendation:hover {
     background: #f8fafc;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* History page styles */
+.history-card {
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+    transition: all 0.2s ease;
+}
+
+.history-card:hover {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.history-thumbnail {
+    width: 100%;
+    border-radius: 6px;
+    margin-bottom: 12px;
+}
+
+/* Delete button styles */
+button[key^="delete_"] {
+    background-color: #dc2626 !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 6px !important;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    padding: 4px 12px !important;
+    font-size: 12px !important;
+    transition: all 0.2s ease;
+}
+
+button[key^="delete_"]:hover {
+    background-color: #b91c1c !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+button[key^="confirm_"] {
+    background-color: #dc2626 !important;
+    color: #ffffff !important;
+}
+
+button[key^="confirm_"]:hover {
+    background-color: #b91c1c !important;
+}
+
+button[key^="cancel_"] {
+    background-color: #6b7280 !important;
+    color: #ffffff !important;
+}
+
+button[key^="cancel_"]:hover {
+    background-color: #4b5563 !important;
 }
 
 /* Streamlit elements override */
@@ -112,4 +175,12 @@ h1, h2, h3 {
     color: #1a1a1a !important;
     border: 1px solid #e0e0e0 !important;
     border-radius: 6px !important;
+}
+
+/* Grid layout container */
+.grid-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    padding: 20px 0;
 }

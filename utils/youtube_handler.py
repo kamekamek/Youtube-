@@ -14,7 +14,7 @@ class YouTubeHandler:
             r'(?:v=|\/)([0-9A-Za-z_-]{11}).*',
             r'(?:youtu\.be\/)([0-9A-Za-z_-]{11})',
         ]
-        
+
         for pattern in patterns:
             match = re.search(pattern, url)
             if match:
@@ -22,7 +22,7 @@ class YouTubeHandler:
         raise ValueError("Invalid YouTube URL")
 
     def get_video_details(self, video_id: str) -> Dict:
-        """Get video title and description."""
+        """Get video title, description, and thumbnail."""
         try:
             response = self.youtube.videos().list(
                 part='snippet',
@@ -35,7 +35,9 @@ class YouTubeHandler:
             snippet = response['items'][0]['snippet']
             return {
                 'title': snippet['title'],
-                'description': snippet['description']
+                'description': snippet['description'],
+                'channelId': snippet['channelId'],
+                'thumbnail': snippet['thumbnails']['high']['url']  # 高解像度のサムネイルを取得
             }
         except google.api_core.exceptions.Error as e:
             raise Exception(f"YouTube API error: {str(e)}")
@@ -48,29 +50,45 @@ class YouTubeHandler:
         except Exception as e:
             raise Exception(f"Could not fetch transcript: {str(e)}")
 
-    def get_recommendations(self, url: str, max_results: int = 5) -> List[Dict]:
-        """Get video recommendations based on a video."""
+    def get_channel_latest_videos(self, url: str, max_results: int = 5) -> List[Dict]:
+        """Get latest videos from the same channel."""
         try:
+            # まず動画のチャンネルIDを取得
             video_id = self.extract_video_id(url)
+            video_details = self.get_video_details(video_id)
+            channel_id = video_details['channelId']
+
+            # チャンネルの最新動画を取得
             response = self.youtube.search().list(
                 part='snippet',
-                relatedToVideoId=video_id,
+                channelId=channel_id,
+                order='date',  # 日付順で並べ替え
                 type='video',
-                maxResults=max_results
+                maxResults=max_results + 1  # 現在の動画も含まれる可能性があるため+1
             ).execute()
 
-            recommendations = []
+            latest_videos = []
+            current_video_id = video_id.lower()  # 大文字小文字を区別しないように
+
             for item in response.get('items', []):
                 if item['id']['kind'] == 'youtube#video':
-                    recommendations.append({
-                        'id': item['id']['videoId'],
-                        'title': item['snippet']['title'],
-                        'thumbnail': item['snippet']['thumbnails']['default']['url']
-                    })
-            return recommendations
+                    # 現在の動画を除外
+                    if item['id']['videoId'].lower() != current_video_id:
+                        latest_videos.append({
+                            'id': item['id']['videoId'],
+                            'title': item['snippet']['title'],
+                            'thumbnail': item['snippet']['thumbnails']['high']['url']  # 高解像度のサムネイルを使用
+                        })
+                        if len(latest_videos) >= max_results:
+                            break
+
+            if not latest_videos:
+                raise Exception("No other videos found in this channel")
+
+            return latest_videos
+
         except Exception as e:
-            print(f"Error getting recommendations: {str(e)}")
-            return []
+            raise Exception(f"Error getting channel videos: {str(e)}")
 
     def process_videos(self, urls: List[str]) -> List[Dict]:
         """Process multiple YouTube videos."""
@@ -80,12 +98,13 @@ class YouTubeHandler:
                 video_id = self.extract_video_id(url)
                 details = self.get_video_details(video_id)
                 transcript = self.get_transcript(video_id)
-                
+
                 results.append({
                     'url': url,
                     'video_id': video_id,
                     'title': details['title'],
                     'description': details['description'],
+                    'thumbnail': details['thumbnail'],  # サムネイル情報を追加
                     'transcript': transcript
                 })
             except Exception as e:

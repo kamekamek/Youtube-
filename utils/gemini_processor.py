@@ -14,7 +14,7 @@ class GeminiProcessor:
     def generate_article(self, video_data: List[Dict], language: str = 'ja') -> str:
         """Generate a summary from multiple video sources in specified language."""
         prompt = self._prepare_prompt(video_data, language)
-        
+
         try:
             if language == 'zh':
                 # Specific configuration for Chinese language generation
@@ -73,7 +73,7 @@ class GeminiProcessor:
 6. 重要な情報に焦点を当てる
 
 すべての出力は日本語で生成してください。""",
-            
+
             'en': """Generate a concise summary based on the following YouTube videos:
 
 Please create a well-structured summary that:
@@ -85,7 +85,7 @@ Please create a well-structured summary that:
 6. Focuses on important information
 
 Generate all output in English.""",
-            
+
             'zh': """【重要提示：此摘要必须完全使用简体中文撰写】
 
 【摘要生成指引】
@@ -134,9 +134,9 @@ Generate all output in English.""",
                 else:
                     title_label = "Title: "
                     content_label = "Content: "
-                
+
                 prompt += f"{title_label}{video['title']}\n"
-                
+
                 # Preprocess transcript
                 transcript = video['transcript']
                 if language == 'zh':
@@ -154,10 +154,10 @@ Generate all output in English.""",
                     transcript = self._preprocess_chinese_text(transcript)
                 else:
                     transcript = transcript[:2000].rsplit('.', 1)[0] + '...'
-                
+
                 prompt += f"{content_label}{transcript}\n\n"
 
         if language == 'zh':
             prompt += "\n【注意事项】\n请确保生成的摘要完全使用简体中文，并保持专业性和可读性的平衡。"
-        
+
         return prompt

@@ -4,6 +4,9 @@ from utils import YouTubeHandler, GeminiProcessor
 from utils.db_handler import DatabaseHandler
 from datetime import datetime
 import traceback
+from dotenv import load_dotenv
+
+load_dotenv()  # .envファイルから環境変数を読み込む
 
 # Page configuration must be the first Streamlit command
 st.set_page_config(
@@ -31,21 +34,17 @@ TRANSLATIONS = {
         'generated_article': '生成された要約',
         'sources': 'ソース',
         'language_selector': '言語を選択',
-        'recommendations': 'おすすめの動画',
-        'recent_summaries': '最近生成された要約',
-        'view_history': '履歴を表示',
-        'summary_date_format': '%Y年%m月%d日 %H:%M',
-        'summary_sources_label': '参照元',
-        'summary_expand_label': 'クリックして要約を表示',
+        'channel_videos': 'チャンネルの他の動画',
+        'no_channel_videos': 'チャンネルの他の動画を取得できませんでした',
         'db_error': 'データベースエラーが発生しました：',
-        'no_summaries': '保存された要約はまだありません',
         'saving_summary': '要約を保存中...',
         'summary_saved': '要約が保存されました',
         'settings_section': '設定',
-        'history_section': '履歴',
         'db_connecting': 'データベースに接続中...',
         'db_connected': 'データベース接続完了',
-        'db_connection_failed': 'データベース接続に失敗しました'
+        'db_connection_failed': 'データベース接続に失敗しました',
+        'loading_channel_videos': 'チャンネルの動画を読み込み中...',
+        'view_history': '履歴を表示'
     },
     'en': {
         'page_title': 'Summary Generator',
@@ -61,21 +60,17 @@ TRANSLATIONS = {
         'generated_article': 'Generated Summary',
         'sources': 'Sources',
         'language_selector': 'Select Language',
-        'recommendations': 'Recommended Videos',
-        'recent_summaries': 'Recent Summaries',
-        'view_history': 'View History',
-        'summary_date_format': '%Y-%m-%d %H:%M',
-        'summary_sources_label': 'Sources',
-        'summary_expand_label': 'Click to view summary',
+        'channel_videos': 'More Videos from Channel',
+        'no_channel_videos': 'Could not fetch channel videos',
         'db_error': 'Database error occurred: ',
-        'no_summaries': 'No saved summaries yet',
         'saving_summary': 'Saving summary...',
         'summary_saved': 'Summary saved successfully',
         'settings_section': 'Settings',
-        'history_section': 'History',
         'db_connecting': 'Connecting to database...',
         'db_connected': 'Database connected successfully',
-        'db_connection_failed': 'Database connection failed'
+        'db_connection_failed': 'Database connection failed',
+        'loading_channel_videos': 'Loading channel videos...',
+        'view_history': 'View History'
     },
     'zh': {
         'page_title': '摘要生成器',
@@ -91,21 +86,17 @@ TRANSLATIONS = {
         'generated_article': '生成的摘要',
         'sources': '来源',
         'language_selector': '选择语言',
-        'recommendations': '推荐视频',
-        'recent_summaries': '最近的摘要',
-        'view_history': '查看历史',
-        'summary_date_format': '%Y年%m月%d日 %H:%M',
-        'summary_sources_label': '来源',
-        'summary_expand_label': '点击查看摘要',
+        'channel_videos': '频道的更多视频',
+        'no_channel_videos': '无法获取频道视频',
         'db_error': '数据库错误：',
-        'no_summaries': '暂无保存的摘要',
         'saving_summary': '正在保存摘要...',
         'summary_saved': '摘要保存成功',
         'settings_section': '设置',
-        'history_section': '历史记录',
         'db_connecting': '正在连接数据库...',
         'db_connected': '数据库连接成功',
-        'db_connection_failed': '数据库连接失败'
+        'db_connection_failed': '数据库连接失败',
+        'loading_channel_videos': '正在加载频道视频...',
+        'view_history': '查看历史'
     }
 }
 
@@ -117,13 +108,15 @@ def initialize_session_state():
         st.session_state.processing = False
     if 'language' not in st.session_state:
         st.session_state.language = 'ja'  # Default to Japanese
-    
+    if 'channel_videos' not in st.session_state:
+        st.session_state.channel_videos = []
+
     # Initialize database connection
     if 'db_handler' not in st.session_state:
         try:
             with st.spinner(get_text('db_connecting')):
                 st.session_state.db_handler = DatabaseHandler()
-                
+
                 # Test database connection
                 if not st.session_state.db_handler.verify_connection():
                     st.error(get_text('db_connection_failed'))
@@ -146,32 +139,6 @@ def get_text(key: str) -> str:
     """Get translated text based on current language."""
     return TRANSLATIONS[st.session_state.language].get(key, key)
 
-def display_recent_summaries():
-    """Display recent summaries from the database."""
-    try:
-        if st.session_state.db_handler is None:
-            st.warning(get_text('db_error'))
-            return
-
-        summaries = st.session_state.db_handler.get_summaries_by_language(
-            st.session_state.language
-        )
-        if summaries:
-            st.markdown(f"### {get_text('recent_summaries')}")
-            for summary in summaries:
-                date_format = get_text('summary_date_format')
-                formatted_date = summary.timestamp.strftime(date_format)
-                with st.expander(f"{summary.title} - {formatted_date}"):
-                    st.markdown(summary.summary)
-                    st.markdown(f"**{get_text('summary_sources_label')}:**")
-                    for url in summary.source_urls.split(','):
-                        st.markdown(f'<a href="{url.strip()}" target="_blank">{url.strip()}</a>', 
-                                unsafe_allow_html=True)
-        else:
-            st.info(get_text('no_summaries'))
-    except Exception as e:
-        st.error(f"{get_text('db_error')} {str(e)}")
-
 def main():
     try:
         # Load custom CSS
@@ -183,7 +150,7 @@ def main():
 
         # Initialize session state (includes database connection)
         initialize_session_state()
-        
+
         # Language selector
         st.selectbox(
             get_text('language_selector'),
@@ -192,7 +159,7 @@ def main():
             format_func=lambda x: '日本語' if x == 'ja' else 'English' if x == 'en' else '中文',
             key='language'
         )
-        
+
         st.title(f"📝 {get_text('page_title')}")
         st.markdown(get_text('app_description'))
 
@@ -253,48 +220,57 @@ def main():
                                 title=video_data[0]['title'],
                                 summary=article,
                                 language=st.session_state.language,
-                                source_urls=','.join(valid_urls)
+                                source_urls=','.join(valid_urls),
+                                thumbnail_url=video_data[0].get('thumbnail')  # サムネイル情報を保存
                             )
                             st.success(get_text('summary_saved'))
 
-                    # Get video recommendations
-                    recommendations = youtube_handler.get_recommendations(valid_urls[0])
-                    st.session_state.recommendations = recommendations
+                    # Get channel videos
+                    with st.spinner(get_text('loading_channel_videos')):
+                        try:
+                            channel_videos = youtube_handler.get_channel_latest_videos(valid_urls[0])
+                            st.session_state.channel_videos = channel_videos
+                        except Exception as e:
+                            st.warning(f"{get_text('no_channel_videos')}: {str(e)}")
+                            st.session_state.channel_videos = []
 
             except Exception as e:
                 st.error(f"{get_text('error_occurred')}{str(e)}")
+                traceback.print_exc()
             finally:
                 st.session_state.processing = False
-
-        # Display recent summaries in sidebar
-        with st.sidebar:
-            display_recent_summaries()
 
         # Display generated article
         if st.session_state.generated_article:
             st.markdown(f"### {get_text('generated_article')}")
-            st.markdown('<div class="article-container">', unsafe_allow_html=True)
             st.markdown(st.session_state.generated_article)
-            st.markdown('</div>', unsafe_allow_html=True)
 
             # Source attribution
             st.markdown(f"### {get_text('sources')}")
             for url in validate_urls(urls_input.split('\n')):
                 st.markdown(f'<a href="{url}" class="source-link" target="_blank">{url}</a>', 
                            unsafe_allow_html=True)
-            
-            # Display recommendations
-            if hasattr(st.session_state, 'recommendations'):
-                st.markdown(f"### {get_text('recommendations')}")
-                for video in st.session_state.recommendations:
+
+            # Display channel videos
+            if st.session_state.channel_videos:
+                st.markdown(f"### {get_text('channel_videos')}")
+                for video in st.session_state.channel_videos:
                     st.markdown(
                         f'<a href="https://youtube.com/watch?v={video["id"]}" class="video-recommendation" target="_blank">'
                         f'<img src="{video["thumbnail"]}" style="width:120px;margin-right:10px;">'
                         f'{video["title"]}</a>',
                         unsafe_allow_html=True
                     )
+            elif st.session_state.generated_article:  # Only show this message if an article was generated
+                st.warning(get_text('no_channel_videos'))
+
+        # Add link to history page in sidebar
+        with st.sidebar:
+            st.markdown(f"[📚 {get_text('view_history')}](/History)")
+
     except Exception as e:
         st.error(f"{get_text('error_occurred')}{str(e)}")
+        traceback.print_exc()
 
 if __name__ == "__main__":
     main()
