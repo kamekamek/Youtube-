@@ -8,7 +8,7 @@ import streamlit as st
 class VideoSummary:
     def __init__(self, id: int, video_id: str, title: str, summary: str, 
                  language: str, timestamp: datetime, source_urls: str,
-                 thumbnail_url: str = None):
+                 thumbnail_url: Optional[str] = None):
         self.id = id
         self.video_id = video_id
         self.title = title
@@ -55,7 +55,7 @@ class DatabaseHandler:
             return False
 
     def save_summary(self, video_id: str, title: str, summary: str, 
-                    language: str, source_urls: str, thumbnail_url: str = None) -> bool:
+                    language: str, source_urls: str, thumbnail_url: Optional[str] = None) -> bool:
         """Save a video summary to the database."""
         try:
             if not self.verify_connection():
