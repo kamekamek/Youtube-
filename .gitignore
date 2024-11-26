@@ -1,0 +1,35 @@
+# Pythonのバーチャル環境
+venv/
+# 環境変数ファイル
+.env.local
+# Pythonのキャッシュファイル
+__pycache__/
+*.py[cod]
+# Jupyter Notebookのチェックポイント
+.ipynb_checkpoints/
+# その他のIDEやエディタの設定ファイル
+.idea/
+.vscode/
+# OSによる隠しファイル
+.DS_Store
+# Jupyter Notebookの出力ファイル
+*.ipynb_checkpoints
+# Pytestのキャッシュ
+.cache/
+# 依存関係のロックファイル
+Pipfile.lock
+# Pythonのバイナリファイル
+*.egg
+*.egg-info/
+# その他の環境変数ファイル
+.env
+# ログファイル
+*.log
+# ローカル設定ファイル
+.pythonlibs/
+.upm/
+.local/
+db/
+.replit
+replit_zip_error_log.txt
+replit.nix
