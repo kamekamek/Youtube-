@@ -2,6 +2,7 @@ import streamlit as st
 import os
 from utils import YouTubeHandler, GeminiProcessor
 from utils.db_handler import DatabaseHandler
+from utils.image_handler import ImageHandler
 from datetime import datetime
 import traceback
 from dotenv import load_dotenv
@@ -139,6 +140,15 @@ def get_text(key: str) -> str:
     """Get translated text based on current language."""
     return TRANSLATIONS[st.session_state.language].get(key, key)
 
+def display_character_image():
+    """キャラクター画像を表示"""
+    image_handler = ImageHandler()
+    try:
+        character_image = image_handler.create_character_bubble("こんにちは！")  # 吹き出しを追加
+        st.image(character_image, use_column_width=True)
+    except FileNotFoundError:
+        st.error("キャラクター画像が見つかりません。")
+
 def main():
     try:
         # Load custom CSS
@@ -147,6 +157,9 @@ def main():
                 st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
         except Exception as e:
             st.error(f"Error loading CSS: {str(e)}")
+
+        # キャラクター画像を表示
+        display_character_image()
 
         # Initialize session state (includes database connection)
         initialize_session_state()
